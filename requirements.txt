@@ -1,0 +1,14 @@
+numpy
+pandas
+pyarrow
+requests
+pyyaml
+scipy
+scikit-learn
+matplotlib
+# Phase 2 (install when you get there):
+# chronos-forecasting>=2.0
+# prophet
+# neuralforecast   (or darts) for the LSTM
+# Phase 3:
+# prometheus-client

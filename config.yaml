@@ -1,0 +1,22 @@
+# Fill the null values as you measure them (Phase 1, steps 11-12). Never change them silently later.
+cluster:
+  compression: 5              # trace replayed 5x faster than real time
+  trace_minute_seconds: 12    # so 1 trace-minute = 12 real seconds
+app:
+  C_rps: 8                 # requests/second ONE pod can take before latency breaks (measure!)
+  D_seconds: 7.4             # seconds from scale-up to pod Ready (average of 5 tries)
+  pod_cpu: 200m
+  min_replicas: 1
+  max_replicas: 10
+sla:
+  unloaded_p95_ms: 25       # measure with almost no load
+  p95_threshold_ms: 200      # e.g. 2 x unloaded p95, or 300
+  max_error_rate: 0.01
+forecast:
+  horizon_minutes: 3          # must be >= D expressed in trace-minutes
+  quantiles: [0.1, 0.5, 0.9]
+  alpha: 0.10                 # target coverage 90%
+split_days:                   # chronological, never shuffle
+  train: [1, 8]
+  calibration: [9, 10]
+  test: [11, 14]

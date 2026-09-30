@@ -1,0 +1,17 @@
+# Baseline: reactive scaling only (CPU). Phase 3 adds a second trigger (cloudpilot_desired_replicas).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: {name: demo-app}
+spec:
+  scaleTargetRef: {name: demo-app}
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  pollingInterval: 5
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown: {stabilizationWindowSeconds: 36}   # about 3 trace-minutes at 5x replay
+  triggers:
+  - type: cpu
+    metricType: Utilization
+    metadata: {value: "60"}
