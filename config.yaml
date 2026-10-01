@@ -3,8 +3,8 @@ cluster:
   compression: 5              # trace replayed 5x faster than real time
   trace_minute_seconds: 12    # so 1 trace-minute = 12 real seconds
 app:
-  C_rps: 8                 # requests/second ONE pod can take before latency breaks (measure!)
-  D_seconds: 7.4             # seconds from scale-up to pod Ready (average of 5 tries)
+  C_rps: 16              # re-measured: saturation about 27 rps, C = 60% of it (matches CPU trigger)
+  D_seconds: 4.7             # re-measured: 5.8, 4.0, 5.0, 4.5, 4.5 s (plugged in, Best performance)
   pod_cpu: 200m
   min_replicas: 1
   max_replicas: 10

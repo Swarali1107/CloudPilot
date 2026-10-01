@@ -5,6 +5,7 @@ const rates = JSON.parse(open('/scripts/rates.json'));
 const STAGE = (__ENV.STAGE_SECONDS || '12') + 's';   // 1 trace-minute = 12 real seconds (5x replay)
 
 export const options = {
+  noConnectionReuse: true,
   scenarios: {
     replay: {
       executor: 'ramping-arrival-rate',
