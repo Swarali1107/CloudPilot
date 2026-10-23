@@ -1,3 +1,4 @@
+import os
 import argparse, itertools, os
 import numpy as np, pandas as pd
 from scipy.stats import ks_2samp
@@ -22,7 +23,7 @@ d = d[d.h == H].drop_duplicates(["function", "t"]).sort_values(["function", "t"]
 d["L"] = d.L.fillna(d.L_static).fillna(d.p10)
 d["U"] = d.U.fillna(d.U_static).fillna(d.p90)
 
-cz = np.load("data/processed/cohort.npz", allow_pickle=True)
+cz = np.load(os.environ.get("COHORT", "data/processed/cohort.npz"), allow_pickle=True)
 keys = [str(k) for k in cz["keys"]]; S = cz["series"].astype(float)
 def row(fn):
     for i, k in enumerate(keys):
@@ -132,3 +133,36 @@ print("\nTEST days, mean over 8 functions (reactive = pods sized to last observe
 print(R.to_string())
 tag = os.path.basename(a.store).replace(".parquet", "")
 R.to_csv(f"results/sim_{tag}_{a.action}.csv"); print(f"\nsaved results/sim_{tag}_{a.action}.csv")
+
+# ---- diagnostic: how much could ANY gate gain? decision-relevant label = predictive violates but reactive does not
+t = test.copy()
+both = ((t.v_pred == 1) & (t.v_react == 1)).mean(); only_p = ((t.v_pred == 1) & (t.v_react == 0)).mean()
+only_r = ((t.v_pred == 0) & (t.v_react == 1)).mean()
+t["regret"] = ((t.v_pred == 1) & (t.v_react == 0)).astype(int)
+ar = [roc_auc_score(g.regret, g.risk) for _, g in t.groupby("function") if g.regret.nunique() > 1]
+print(f"HEADROOM always-pred {both + only_p:.3f} | oracle gate {both:.3f} | only-pred-violates {only_p:.3f} | only-reactive-violates {only_r:.3f} | risk AUROC for regret {np.mean(ar):.3f}")
+
+# ---- selective gate: only the riskiest q of minutes go to reactive; threshold from calibration days only
+from sklearn.linear_model import Ridge
+d["net"] = d.v_pred - d.v_react
+cal = d[d.segment == "calibration"]; test = d[d.segment == "test"]
+rg = Ridge(alpha=1.0).fit(cal[cal.t <= cut][NS], cal[cal.t <= cut].net)
+d["risk_net"] = rg.predict(d[NS]); cal = d[d.segment == "calibration"]; test = d[d.segment == "test"]
+for name, col in [("frozen risk", "risk"), ("net-benefit risk", "risk_net")]:
+    for q in [0, 0.02, 0.05, 0.1, 0.2, 0.4]:
+        thr = cal[col].quantile(1 - q) if q > 0 else np.inf
+        res = []
+        for df in (cal, test):
+            trust = df[col].values <= thr
+            res.append((np.where(trust, df.v_pred, df.v_react).mean(),
+                        np.where(trust, df.pods_pred, df.pods_react).mean() / df.pods_react.mean(), 1 - trust.mean()))
+        print(f"SWEEP {name:16s} q={q:.2f} | cal viol {res[0][0]:.3f} | test viol {res[1][0]:.3f}  pods x{res[1][1]:.3f}  routed {res[1][2]:.1%}")
+
+# ---- paired check on function-days: net-benefit gate vs always predictive (q fixed in advance, not picked on test)
+cal = d[d.segment == "calibration"]; tst = d[d.segment == "test"].copy(); tst["day"] = tst.t // 1440
+for q in [0.05, 0.10, 0.20]:
+    thr = cal.risk_net.quantile(1 - q)
+    tst["v_gate"] = np.where(tst.risk_net.values <= thr, tst.v_pred, tst.v_react)
+    g = tst.groupby(["function", "day"]).agg(gate=("v_gate", "mean"), pred=("v_pred", "mean"))
+    df_ = g.gate - g.pred
+    print(f"PAIRED q={q:.2f} mean diff {df_.mean():+.4f} +/- {df_.std() / np.sqrt(len(df_)):.4f} (n={len(df_)}) | improved {np.mean(df_ < 0):.0%} worse {np.mean(df_ > 0):.0%}")
