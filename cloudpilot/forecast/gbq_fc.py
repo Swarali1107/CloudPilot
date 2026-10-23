@@ -51,7 +51,7 @@ for f in fns:
         d = r.copy(); d["h"] = h; d["y0"] = s[o]; d["y"] = s[o + h]
         d["p10"], d["p50"], d["p90"] = P[:, 0], P[:, 1], P[:, 2]
         out.append(d)
-D = pd.concat(out); D["forecaster"] = "gbq"; D["context"] = CTX
+D = pd.concat(out, ignore_index=True); D["forecaster"] = "gbq"; D["context"] = CTX
 D.to_parquet("results/store_gbq.parquet"); print("saved results/store_gbq.parquet", D.shape)
 
 T = D[(D.segment == "test") & (D.h == 3)]

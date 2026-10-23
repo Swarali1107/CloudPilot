@@ -71,7 +71,7 @@ for f in fns:
         d = r.copy(); d["h"] = h; d["y0"] = s[o]; d["y"] = s[o + h]
         d["p10"], d["p50"], d["p90"] = p[:, h-1, 0], p[:, h-1, 1], p[:, h-1, 2]
         out.append(d)
-D = pd.concat(out); D["forecaster"] = "lstm"; D["context"] = CTX
+D = pd.concat(out, ignore_index=True); D["forecaster"] = "lstm"; D["context"] = CTX
 D.to_parquet("results/store_lstm.parquet"); print("saved results/store_lstm.parquet", D.shape)
 
 # quick check: test segment, h=3, MAE / mean actual
